@@ -1,49 +1,24 @@
-import { useEffect, useState } from "react";
-import { checkBackendHealth } from "./services/api";
+import { BrowserRouter, Routes, Route } from "react-router";
+import Navbar from "./components/layout/Navbar";
 
-function App() {
-  const [backendStatus, setBackendStatus] = useState("Checking...");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    async function checkBackend() {
-      try {
-        const data = await checkBackendHealth();
-
-        if (data.status === "healthy") {
-          setBackendStatus("Connected");
-        } else {
-          setBackendStatus("Unavailable");
-        }
-      } catch (err) {
-        setBackendStatus("Unavailable");
-        setError(err.message);
-      }
-    }
-
-    checkBackend();
-  }, []);
-
+import Home from "./pages/Home";
+import Learn from "./pages/Learn";
+import Experiment from "./pages/Experiment";
+import NotFound from "./pages/NotFound";
+function app() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-4">
-      <h1 className="text-4xl font-bold">
-        TOC Interactive Virtual Lab
-      </h1>
+    <BrowserRouter>
+      <div className="min-h-screen">
+        <Navbar />
 
-      <p className="text-lg">
-        Backend Status:{" "}
-        <span className="font-semibold">
-          {backendStatus}
-        </span>
-      </p>
-
-      {error && (
-        <p className="text-sm">
-          {error}
-        </p>
-      )}
-    </main>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/experiment" element={<Experiment />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
-
-export default App;
+export default app;
