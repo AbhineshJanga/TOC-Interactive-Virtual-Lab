@@ -5,10 +5,16 @@ import DfaControls from "./DfaControls";
 import DfaTrace from "./DfaTrace";
 import TransitionForm from "./TransitionForm";
 import { initialDfa } from "./dfaData";
+import { simulateDFA, validateDfa } from "../../../services/api";
 function DfaLab() {
     const [dfa, setDfa] = useState(initialDfa);
     const [selectedStateId, setSelectedStateId] = useState(null);
     const [showTransitionForm, setShowTransitionForm] = useState(false);
+    const [validationErrors, setValidationErrors] = useState([]);
+    const [inputString, setInputString] = useState("");
+    const [simulationResult, setSimulationResult] = useState(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    const [simulationError, setSimulationError] = useState("");
 
     const handleAddState = () => {
 
@@ -97,6 +103,73 @@ function DfaLab() {
             ],
         }));
     };
+    const handleRunSimulation = async () => {
+        if (!inputString.trim()) {
+            setSimulationError("Please enter an input string.");
+            setSimulationResult(null);
+            setValidationErrors([]);
+            return;
+        }
+
+        if (!dfa.startState) {
+            setSimulationError("Please define a start state.");
+            setSimulationResult(null);
+            setValidationErrors([]);
+            return;
+        }
+
+        if (dfa.finalStates.length === 0) {
+            setSimulationError("Please define at least one final state.");
+            setSimulationResult(null);
+            setValidationErrors([]);
+            return;
+        }
+
+        setIsSimulating(true);
+        setSimulationError("");
+        setValidationErrors([]);
+        setSimulationResult(null);
+
+        try {
+            const backendDfa = {
+                states: dfa.states.map((state) => state.id),
+                alphabet: dfa.alphabet,
+                transitions: dfa.transitions.reduce((result, transition) => {
+                    result[`${transition.source},${transition.symbol}`] =
+                        transition.target;
+
+                    return result;
+                }, {}),
+                start_state: dfa.startState,
+                final_states: dfa.finalStates,
+            };
+
+            // Step 1: Validate DFA
+            const validation = await validateDfa(backendDfa);
+
+            if (!validation.valid) {
+                setValidationErrors(validation.errors || []);
+                setSimulationError("DFA validation failed.");
+                return;
+            }
+
+            // Step 2: Simulate only if DFA is valid
+            const result = await simulateDFA(
+                backendDfa,
+                inputString.trim()
+            );
+
+            setSimulationResult(result);
+        } catch (error) {
+            console.error("DFA simulation error:", error);
+
+            setSimulationError(
+                "Unable to connect to the TOC algorithm engine."
+            );
+        } finally {
+            setIsSimulating(false);
+        }
+    };
     return (
         <main className="min-h-[calc(100vh-4rem)] bg-slate-950 text-white">
             <section className="mx-auto max-w-[1600px] px-6 py-8">
@@ -178,13 +251,19 @@ function DfaLab() {
 
                             <input
                                 type="text"
+                                value={inputString}
+                                onChange={(event) => setInputString(event.target.value)}
                                 placeholder="e.g. 0101"
                                 className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
                             />
                         </div>
 
-                        <button className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500">
-                            Run Simulation
+                        <button
+                            onClick={handleRunSimulation}
+                            disabled={isSimulating}
+                            className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSimulating ? "Running..." : "Run Simulation"}
                         </button>
 
                         <div className="mt-8 border-t border-slate-800 pt-6">
@@ -192,14 +271,65 @@ function DfaLab() {
                                 Result
                             </p>
 
-                            <p className="mt-2 text-xl font-semibold text-slate-500">
-                                —
-                            </p>
+                            {simulationError && (
+                                <p className="mt-3 text-sm leading-6 text-red-400">
+                                    {simulationError}
+                                </p>
+                            )}
+                            {validationErrors.length > 0 && (
+                                <div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                                    <p className="text-sm font-medium text-red-400">
+                                        DFA Validation Errors
+                                    </p>
 
-                            <p className="mt-2 text-sm leading-6 text-slate-500">
-                                Run the simulation to determine whether the input is accepted
-                                or rejected.
-                            </p>
+                                    <ul className="mt-2 space-y-1 text-sm text-red-300">
+                                        {validationErrors.map((error, index) => (
+                                            <li key={index}>• {error}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {!simulationResult && !simulationError && (
+                                <>
+                                    <p className="mt-2 text-xl font-semibold text-slate-500">
+                                        —
+                                    </p>
+
+                                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                                        Run the simulation to determine whether the input is
+                                        accepted or rejected.
+                                    </p>
+                                </>
+                            )}
+
+                            {simulationResult && (
+                                <>
+                                    <p
+                                        className={`mt-2 text-xl font-semibold ${simulationResult.accepted
+                                            ? "text-emerald-400"
+                                            : "text-red-400"
+                                            }`}
+                                    >
+                                        {simulationResult.accepted
+                                            ? "ACCEPTED"
+                                            : "REJECTED"}
+                                    </p>
+
+                                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                                        Final state:{" "}
+                                        <span className="font-medium text-white">
+                                            {simulationResult.final_state}
+                                        </span>
+                                    </p>
+
+                                    {simulationResult.explanation && (
+                                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                                            {simulationResult.explanation}
+                                        </p>
+                                    )}
+                                </>
+                            )}
                         </div>
 
                     </aside>
@@ -208,7 +338,10 @@ function DfaLab() {
 
                 {/* Trace */}
                 <div className="mt-5">
-                    <DfaTrace />
+                    <DfaTrace
+                        trace={simulationResult?.trace || []}
+                        simulationResult={simulationResult}
+                    />
                 </div>
 
             </section>

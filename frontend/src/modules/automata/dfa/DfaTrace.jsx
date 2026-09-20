@@ -1,4 +1,6 @@
-function DfaTrace() {
+function DfaTrace({ trace = [] }) {
+  const hasTrace = trace.length > 0;
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex items-center justify-between">
@@ -12,8 +14,13 @@ function DfaTrace() {
           </p>
         </div>
 
-        <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-500">
-          No simulation
+        <span
+          className={`rounded-full border px-3 py-1 text-xs ${hasTrace
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+              : "border-slate-700 text-slate-500"
+            }`}
+        >
+          {hasTrace ? `${trace.length} Steps` : "No simulation"}
         </span>
       </div>
 
@@ -30,14 +37,43 @@ function DfaTrace() {
           </thead>
 
           <tbody>
-            <tr>
-              <td
-                colSpan="5"
-                className="px-4 py-10 text-center text-slate-600"
-              >
-                Run a simulation to see the computation trace.
-              </td>
-            </tr>
+            {hasTrace ? (
+              trace.map((step) => (
+                <tr
+                  key={step.step}
+                  className="border-b border-slate-800/70 last:border-0"
+                >
+                  <td className="px-4 py-3 font-medium text-blue-400">
+                    {step.step}
+                  </td>
+
+                  <td className="px-4 py-3 font-medium text-white">
+                    {step.current_state}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-300">
+                    {step.symbol ?? "—"}
+                  </td>
+
+                  <td className="px-4 py-3 font-medium text-emerald-400">
+                    {step.next_state}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-400">
+                    {step.explanation}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="5"
+                  className="px-4 py-10 text-center text-slate-600"
+                >
+                  Run a simulation to see the computation trace.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
