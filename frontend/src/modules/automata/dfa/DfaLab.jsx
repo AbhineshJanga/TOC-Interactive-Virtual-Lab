@@ -5,16 +5,31 @@ import DfaControls from "./DfaControls";
 import DfaTrace from "./DfaTrace";
 import TransitionForm from "./TransitionForm";
 import { initialDfa } from "./dfaData";
+import { getDfaValidationErrors } from "./dfaValidation";
 import { simulateDFA, validateDfa } from "../../../services/api";
+import {
+    applyAutomatonEdgeChanges,
+    applyAutomatonNodeChanges,
+    createAutomatonTransitionId,
+    toggleAutomatonFinalState,
+} from "../shared/automatonGraphChanges";
 function DfaLab() {
     const [dfa, setDfa] = useState(initialDfa);
     const [selectedStateId, setSelectedStateId] = useState(null);
     const [showTransitionForm, setShowTransitionForm] = useState(false);
+    const [editingTransitionId, setEditingTransitionId] = useState(null);
     const [validationErrors, setValidationErrors] = useState([]);
     const [inputString, setInputString] = useState("");
     const [simulationResult, setSimulationResult] = useState(null);
     const [isSimulating, setIsSimulating] = useState(false);
     const [simulationError, setSimulationError] = useState("");
+    const configurationErrors = getDfaValidationErrors(dfa);
+
+    const clearSimulation = () => {
+        setSimulationResult(null);
+        setSimulationError("");
+        setValidationErrors([]);
+    };
 
     const handleAddState = () => {
 
@@ -38,9 +53,10 @@ function DfaLab() {
             ...currentDfa,
             states: [...currentDfa.states, newState],
         }));
+        clearSimulation();
     };
     const handleDeleteState = () => {
-        if (!selectedStateId) {
+        if (selectedStateId == null) {
             return;
         }
 
@@ -80,57 +96,99 @@ function DfaLab() {
         });
 
         setSelectedStateId(null);
+        clearSimulation();
     };
-    const handleAddTransition = ({
-        source,
-        target,
-        symbol,
-    }) => {
-        const transitionId = `${source}-${symbol}-${target}-${Date.now()}`;
+    const handleToggleFinal = (stateId = selectedStateId) => {
+        if (typeof stateId !== "string" || !dfa.states.some((state) => state.id === stateId)) return;
+        setDfa((currentDfa) => {
+            const validFinalStates = currentDfa.finalStates.filter(
+                (finalStateId) =>
+                    typeof finalStateId === "string" &&
+                    currentDfa.states.some((state) => state.id === finalStateId)
+            );
+            return toggleAutomatonFinalState(
+                { ...currentDfa, finalStates: validFinalStates },
+                stateId
+            );
+        });
+        clearSimulation();
+    };
+    const handleSaveTransition = ({ source, target, symbol }, transitionId) => {
+        const stateIds = dfa.states.map((state) => state.id);
+        if (!stateIds.includes(source) || !stateIds.includes(target)) {
+            setSimulationError("Choose a source and destination from the states currently in the DFA.");
+            return false;
+        }
+        if (!dfa.alphabet.includes(symbol)) {
+            setSimulationError("Choose an input symbol from the DFA alphabet.");
+            return false;
+        }
+        if (dfa.transitions.some((item) =>
+            item.id !== transitionId && item.source === source && item.symbol === symbol
+        )) {
+            setSimulationError(`A transition for δ(${source}, ${symbol}) already exists. Edit or delete it instead.`);
+            return false;
+        }
 
-        const newTransition = {
-            id: transitionId,
-            source,
-            target,
-            symbol,
-        };
-
+        setDfa((currentDfa) => {
+            if (transitionId) {
+                return {
+                    ...currentDfa,
+                    transitions: currentDfa.transitions.map((item) =>
+                        item.id === transitionId ? { ...item, source, target, symbol } : item
+                    ),
+                };
+            }
+            return {
+                ...currentDfa,
+                transitions: [
+                    ...currentDfa.transitions,
+                    {
+                        id: createAutomatonTransitionId(currentDfa.transitions, {
+                            source,
+                            symbol,
+                            target,
+                        }),
+                        source,
+                        target,
+                        symbol,
+                    },
+                ],
+            };
+        });
+        clearSimulation();
+        return true;
+    };
+    const handleDeleteTransition = (transitionId) => {
         setDfa((currentDfa) => ({
             ...currentDfa,
-            transitions: [
-                ...currentDfa.transitions,
-                newTransition,
-            ],
+            transitions: currentDfa.transitions.filter(
+                (transition) => transition.id !== transitionId
+            ),
         }));
+        clearSimulation();
+    };
+    const handleEdgeChanges = (changes) => {
+        setDfa((currentDfa) => applyAutomatonEdgeChanges(currentDfa, changes));
+        if (changes.some((change) => change.type === "remove")) clearSimulation();
+    };
+    const handleSetStartState = (stateId = selectedStateId) => {
+        if (typeof stateId !== "string" || !dfa.states.some((state) => state.id === stateId)) return;
+        setDfa((currentDfa) => ({ ...currentDfa, startState: stateId }));
+        clearSimulation();
     };
     const handleRunSimulation = async () => {
-        if (!inputString.trim()) {
-            setSimulationError("Please enter an input string.");
-            setSimulationResult(null);
-            setValidationErrors([]);
-            return;
-        }
-
-        if (!dfa.startState) {
-            setSimulationError("Please define a start state.");
-            setSimulationResult(null);
-            setValidationErrors([]);
-            return;
-        }
-
-        if (dfa.finalStates.length === 0) {
-            setSimulationError("Please define at least one final state.");
-            setSimulationResult(null);
-            setValidationErrors([]);
-            return;
-        }
-
         setIsSimulating(true);
         setSimulationError("");
         setValidationErrors([]);
         setSimulationResult(null);
 
         try {
+            if (configurationErrors.length > 0) {
+                setValidationErrors(configurationErrors);
+                setSimulationError("DFA configuration is invalid or incomplete. Fix the listed transitions and settings before running.");
+                return;
+            }
             const backendDfa = {
                 states: dfa.states.map((state) => state.id),
                 alphabet: dfa.alphabet,
@@ -149,23 +207,19 @@ function DfaLab() {
 
             if (!validation.valid) {
                 setValidationErrors(validation.errors || []);
-                setSimulationError("DFA validation failed.");
+                setSimulationError("DFA configuration is invalid. Review the validation errors and correct the builder.");
                 return;
             }
 
             // Step 2: Simulate only if DFA is valid
             const result = await simulateDFA(
                 backendDfa,
-                inputString.trim()
+                inputString
             );
 
             setSimulationResult(result);
         } catch (error) {
-            console.error("DFA simulation error:", error);
-
-            setSimulationError(
-                "Unable to connect to the TOC algorithm engine."
-            );
+            setSimulationError(error.message || "DFA simulation failed.");
         } finally {
             setIsSimulating(false);
         }
@@ -223,7 +277,12 @@ function DfaLab() {
                         onAddState={handleAddState}
                         selectedStateId={selectedStateId}
                         onDeleteState={handleDeleteState}
+                        onSetStartState={handleSetStartState}
+                        onToggleFinal={handleToggleFinal}
                         onOpenTransitionForm={() => setShowTransitionForm(true)}
+                        onEditTransition={(transitionId) => setEditingTransitionId(transitionId)}
+                        onDeleteTransition={handleDeleteTransition}
+                        validationErrors={configurationErrors}
                     />
 
                     {/* Canvas */}
@@ -231,6 +290,14 @@ function DfaLab() {
                         dfa={dfa}
                         selectedStateId={selectedStateId}
                         onSelectState={setSelectedStateId}
+                        onEdgeChanges={handleEdgeChanges}
+                        onNodesChange={(changes) =>
+                            setDfa((currentDfa) =>
+                                applyAutomatonNodeChanges(currentDfa, changes)
+                            )
+                        }
+                        onDeleteTransition={handleDeleteTransition}
+                        onEditTransition={(transitionId) => setEditingTransitionId(transitionId)}
                     />
 
                     {/* Simulation */}
@@ -252,7 +319,11 @@ function DfaLab() {
                             <input
                                 type="text"
                                 value={inputString}
-                                onChange={(event) => setInputString(event.target.value)}
+                                onChange={(event) => {
+                                    setInputString(event.target.value);
+                                    setSimulationResult(null);
+                                    setSimulationError("");
+                                }}
                                 placeholder="e.g. 0101"
                                 className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
                             />
@@ -328,6 +399,11 @@ function DfaLab() {
                                             {simulationResult.explanation}
                                         </p>
                                     )}
+                                    {simulationResult.error && (
+                                        <p className="mt-2 text-sm leading-6 text-red-300">
+                                            {simulationResult.error}
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -345,11 +421,15 @@ function DfaLab() {
                 </div>
 
             </section>
-            {showTransitionForm && (
+            {(showTransitionForm || editingTransitionId != null) && (
                 <TransitionForm
                     dfa={dfa}
-                    onAddTransition={handleAddTransition}
-                    onClose={() => setShowTransitionForm(false)}
+                    transition={dfa.transitions.find((item) => item.id === editingTransitionId)}
+                    onSaveTransition={handleSaveTransition}
+                    onClose={() => {
+                        setShowTransitionForm(false);
+                        setEditingTransitionId(null);
+                    }}
                 />
             )}
         </main>

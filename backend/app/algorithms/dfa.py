@@ -11,16 +11,37 @@ def validate_dfa(dfa):
     final_states = dfa.get("final_states", [])
     transitions = dfa.get("transitions", {})
 
+    if not isinstance(states, list) or any(not isinstance(state, str) or not state for state in states):
+        errors.append("DFA states must be a list of non-empty strings.")
+        states = []
+    if not isinstance(alphabet, list) or any(not isinstance(symbol, str) for symbol in alphabet):
+        errors.append("DFA alphabet must be a list of strings.")
+        alphabet = []
+    if not isinstance(final_states, list) or any(not isinstance(state, str) for state in final_states):
+        errors.append("DFA final states must be a list of state names.")
+        final_states = []
+    if not isinstance(transitions, dict):
+        errors.append("DFA transitions must be an object mapping 'state,symbol' to a destination state.")
+        transitions = {}
+
     # 1. Check states
     if not states:
         errors.append("DFA must contain at least one state.")
+    if len(states) != len(set(states)):
+        errors.append("DFA states must be unique.")
 
     # 2. Check alphabet
     if not alphabet:
         errors.append("DFA alphabet cannot be empty.")
+    if len(alphabet) != len(set(alphabet)):
+        errors.append("DFA alphabet symbols must be unique.")
+    if any(not isinstance(symbol, str) or len(symbol) != 1 for symbol in alphabet):
+        errors.append("DFA alphabet symbols must be single characters.")
 
     # 3. Check start state
-    if start_state not in states:
+    if not isinstance(start_state, str):
+        errors.append("DFA start state must be a state ID string.")
+    elif start_state not in states:
         errors.append(
             f"Start state '{start_state}' is not present in the state set."
         )
@@ -39,21 +60,41 @@ def validate_dfa(dfa):
 
     for state in states:
         for symbol in alphabet:
-
             transition_key = f"{state},{symbol}"
-
             if transition_key not in transitions:
                 errors.append(
                     f"Missing transition: δ({state}, {symbol})."
                 )
             else:
                 target = transitions[transition_key]
-
-                if target not in states:
+                if not isinstance(target, str):
+                    errors.append(
+                        f"Transition δ({state}, {symbol}) destination must be a state ID string."
+                    )
+                elif target not in states:
                     errors.append(
                         f"Transition δ({state}, {symbol}) points to "
                         f"unknown state '{target}'."
                     )
+
+    for transition_key, target in transitions.items():
+        if not isinstance(transition_key, str):
+            errors.append(f"Invalid transition key '{transition_key}'. Use 'state,symbol'.")
+            continue
+        source, separator, symbol = transition_key.partition(",")
+        if not separator:
+            errors.append(
+                f"Invalid transition key '{transition_key}'. Use 'state,symbol'."
+            )
+            continue
+        if source not in states:
+            errors.append(f"Transition source '{source}' is not present in the state set.")
+        if symbol not in alphabet:
+            errors.append(f"Transition symbol '{symbol}' is not present in the DFA alphabet.")
+        if not isinstance(target, str):
+            errors.append("Transition destination must be a state ID string.")
+        elif target not in states:
+            errors.append(f"Transition target '{target}' is not present in the state set.")
 
     return {
         "valid": len(errors) == 0,
@@ -102,7 +143,10 @@ def simulate_dfa(
                 "error": (
                     f"Symbol '{symbol}' is not present "
                     f"in the DFA alphabet."
-                )
+                ),
+                "explanation": (
+                    f"Input rejected because symbol '{symbol}' is not in the DFA alphabet."
+                ),
             }
 
         # DFA transition key

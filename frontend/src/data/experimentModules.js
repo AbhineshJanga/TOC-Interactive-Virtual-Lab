@@ -14,13 +14,13 @@ export const experimentGroups = [
         name: "NFA",
         description: "Build a nondeterministic finite automaton.",
         path: "/experiment/nfa",
-        status: "Planned",
+        status: "Available",
       },
       {
         name: "ε-NFA",
         description: "Experiment with epsilon transitions.",
         path: "/experiment/enfa",
-        status: "Planned",
+        status: "Available",
       },
     ],
   },
@@ -35,7 +35,7 @@ export const experimentGroups = [
         description:
           "Enter a regular expression and explore its automaton.",
         path: "/experiment/regex",
-        status: "Planned",
+        status: "Available",
       },
     ],
   },
@@ -50,7 +50,7 @@ export const experimentGroups = [
         description:
           "Define productions and generate derivations.",
         path: "/experiment/cfg",
-        status: "Planned",
+        status: "Available",
       },
     ],
   },
@@ -65,14 +65,14 @@ export const experimentGroups = [
         description:
           "Construct a pushdown automaton with a stack.",
         path: "/experiment/pda",
-        status: "Planned",
+        status: "Available",
       },
       {
         name: "Turing Machine",
         description:
           "Define states, transitions and tape operations.",
         path: "/experiment/turing-machine",
-        status: "Planned",
+        status: "Available",
       },
     ],
   },

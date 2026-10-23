@@ -1,19 +1,20 @@
 import React from "react";
 function TransitionForm({
   dfa,
-  onAddTransition,
+  transition,
+  onSaveTransition,
   onClose,
 }) {
   const [source, setSource] = React.useState(
-    dfa.states[0]?.id || ""
+    transition?.source || dfa.states[0]?.id || ""
   );
 
   const [symbol, setSymbol] = React.useState(
-    dfa.alphabet[0] || ""
+    transition?.symbol || dfa.alphabet[0] || ""
   );
 
   const [target, setTarget] = React.useState(
-    dfa.states[0]?.id || ""
+    transition?.target || dfa.states[0]?.id || ""
   );
 
   const [error, setError] = React.useState("");
@@ -29,9 +30,10 @@ function TransitionForm({
     }
 
     const duplicate = dfa.transitions.some(
-      (transition) =>
-        transition.source === source &&
-        transition.symbol === symbol
+      (existingTransition) =>
+        existingTransition.id !== transition?.id &&
+        existingTransition.source === source &&
+        existingTransition.symbol === symbol
     );
 
     if (duplicate) {
@@ -41,13 +43,13 @@ function TransitionForm({
       return;
     }
 
-    onAddTransition({
+    const saved = onSaveTransition({
       source,
       target,
       symbol,
-    });
+    }, transition?.id);
 
-    onClose();
+    if (saved !== false) onClose();
   };
 
   return (
@@ -59,7 +61,7 @@ function TransitionForm({
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-xl font-semibold text-white">
-              Add Transition
+              {transition ? "Edit Transition" : "Add Transition"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
@@ -153,7 +155,7 @@ function TransitionForm({
             type="submit"
             className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
           >
-            Add Transition
+            {transition ? "Save Changes" : "Add Transition"}
           </button>
         </div>
       </form>

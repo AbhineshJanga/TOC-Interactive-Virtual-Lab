@@ -16,3 +16,52 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* Keep React Flow controls consistent with the laboratory surface. */
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid #334155 !important;
+  border-radius: 10px;
+  background: #0f172a !important;
+  box-shadow: 0 12px 30px rgb(2 6 23 / 35%);
+}
+
+.react-flow__controls-button {
+  width: 32px !important;
+  height: 32px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #334155 !important;
+  background: #0f172a !important;
+  fill: #cbd5e1 !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: 0 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #164e63 !important;
+  fill: #67e8f9 !important;
+}
+
+.react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid #334155 !important;
+  border-radius: 10px;
+  background: #0b1220 !important;
+  box-shadow: 0 12px 30px rgb(2 6 23 / 30%);
+}
+
+.react-flow__minimap-mask {
+  fill: rgb(8 15 30 / 65%) !important;
+  stroke: #38bdf8 !important;
+}
+
+.react-flow__attribution {
+  background: rgb(2 6 23 / 80%) !important;
+  color: #64748b !important;
+}
+
+.react-flow__attribution a {
+  color: #94a3b8 !important;
+}

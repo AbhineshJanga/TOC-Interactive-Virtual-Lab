@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.models.dfa import DFASimulationRequest
 from app.algorithms.dfa import simulate_dfa
 from app.algorithms.dfa import validate_dfa
@@ -19,6 +19,9 @@ def simulate(request: DFASimulationRequest):
     """
 
     dfa = request.dfa
+    validation = validate_dfa(dfa.model_dump())
+    if not validation["valid"]:
+        raise HTTPException(status_code=422, detail=validation["errors"])
 
     result = simulate_dfa(
         states=dfa.states,
@@ -30,5 +33,4 @@ def simulate(request: DFASimulationRequest):
     )
 
     return result
-
 

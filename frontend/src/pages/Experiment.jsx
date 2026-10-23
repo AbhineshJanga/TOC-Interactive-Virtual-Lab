@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import ModuleCard from "../components/common/ModuleCard";
 import { experimentGroups } from "../data/experimentModules";
 
@@ -87,31 +86,6 @@ function Experiment() {
               </div>
             </section>
           ))}
-        </div>
-
-        <div className="mt-20 rounded-xl border border-blue-500/20 bg-blue-500/5 p-8">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-400">
-              Current Laboratory
-            </p>
-
-            <h2 className="mt-3 text-2xl font-bold">
-              DFA Experiment
-            </h2>
-
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              The DFA laboratory is the first fully interactive experiment.
-              Build a finite automaton, test strings, visualize state
-              transitions and inspect the execution trace.
-            </p>
-
-            <Link
-              to="/experiment/dfa"
-              className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500"
-            >
-              Open DFA Laboratory
-            </Link>
-          </div>
         </div>
 
       </section>
