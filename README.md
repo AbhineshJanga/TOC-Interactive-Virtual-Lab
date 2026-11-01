@@ -33,9 +33,6 @@ An interactive Theory of Computation virtual laboratory for learning, building, 
 - FastAPI
 - Custom TOC Algorithm Engine
 
-### Database
-- MongoDB
-
 ### Development
 - VS Code
 - Git
